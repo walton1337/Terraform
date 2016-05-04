@@ -63,14 +63,12 @@
             var time = 0.0;
             camera.position.z = 15;
 
-            //window.onclick = clickfun;
-
             var mousedownID = -1;  //Global ID of mouse down interval
             function mousedown(event) {
+                mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
               if(mousedownID==-1)  //Prevent multimple loops!
-                 mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
-                 mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
-                 mousedownID = setInterval(whilemousedown, 100 /*execute every 100ms*/);
+                 mousedownID = setInterval(clickfun, 50 /*execute every 100ms*/);
 
 
             }
@@ -81,27 +79,10 @@
                }
 
             }
-            function whilemousedown() {
-                //mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
-                //mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
-                raycaster.setFromCamera( mouse, camera );
-
-                var intersect = raycaster.intersectObject(flatplane);
-
-                if ( intersect.length > 0 ) {
-
-                    var iPoint = intersect[0].point;
-
-                    for (var i = 0; i < plane.geometry.vertices.length; i++) {
-                        var gridPoint = plane.geometry.vertices[i];
-                        var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
-                        if(dist < radius){
-                            plane.geometry.vertices[i].z += raise(dist);
-                        }
-                    }
-
-                    console.log( intersect[ 0 ].point );
-
+            function mousemove() {
+                if (mousedownID!=-1){
+                    mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                    mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                 }
             }
             //Assign events
@@ -109,10 +90,13 @@
             document.addEventListener("mouseup", mouseup);
             //Also clear the interval when user leaves the window with mouse
             document.addEventListener("mouseout", mouseup);
+            document.addEventListener("mousemove", mousemove);
+
+            //window.onclick = clickfun;
 
             function clickfun(){
-                mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
-                mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
+                // mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                // mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                 raycaster.setFromCamera( mouse, camera );
 
                 var intersect = raycaster.intersectObject(flatplane);
@@ -136,7 +120,7 @@
             }
 
             function raise(dist){
-                return Math.sqrt(radius - dist) * 0.3;
+                return Math.sqrt(radius - dist) * 0.1;
             }
 
             function euclidean2D(x1, y1, x2, y2){
