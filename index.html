@@ -9,6 +9,53 @@
     </head>
     <body>
         <script src="three.js"></script>
+
+        <script id="fragment_shh" type="x-shader/x-fragment">
+            #ifdef GL_ES
+            precision highp float;
+            #endif
+
+            uniform sampler2D tOne;
+            uniform sampler2D tSec;
+
+            varying vec2 vUv;
+            varying vec4 pos;
+
+            void main(void)
+            {
+                vec3 c;
+                vec4 Ca = texture2D(tOne, vUv);
+                vec4 Cb = texture2D(tSec, vUv);
+                c = Ca.rgb * 0.5 + Cb.rgb * 0.5;
+                gl_FragColor = vec4(c, 1.0);
+                // if(pos.z > 0.2){
+                //     gl_FragColor= Ca;
+                // } else {
+                //     gl_FragColor = Cb;
+                // }
+
+                
+            }
+            
+        </script>
+
+        <script id="vertex_shh" type="x-shader/x-vertex">
+        
+            varying vec2 vUv;
+            varying vec4 pos;
+            
+            void main()
+            {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * mvPosition;
+                pos = gl_Position;
+            }
+            
+        </script>
+
+
+
         <script>
             //Set up the scene
             var scene = new THREE.Scene();
@@ -50,6 +97,29 @@
             var material = new THREE.MeshPhongMaterial( { map: texture } );
             // var meshFaceMaterial = new THREE.MeshFaceMaterial( [material] );
 
+            //trying blend
+            var vertShader = document.getElementById('vertex_shh').innerHTML;
+            var fragShader = document.getElementById('fragment_shh').innerHTML;
+
+            //var attributes = {}; // custom attributes
+
+            var uniforms = {    // custom uniforms (your textures)
+
+              tOne: { type: "t", value: new THREE.TextureLoader().load( "textures/dirt_texture.gif" ) },
+              tSec: { type: "t", value: new THREE.TextureLoader().load("textures/grass_texture.jpeg") } // might need to change this to new THREE.TextureLoader().load("textures/grass_texture.jpeg");
+
+            };
+
+            var material_shh = new THREE.ShaderMaterial({
+
+              uniforms: uniforms,
+              //attributes: attributes,
+              vertexShader: vertShader,
+              fragmentShader: fragShader
+
+            });
+
+
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
@@ -62,7 +132,7 @@
 
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
             // var plane = new THREE.Mesh(geometry, mesh);
-            var plane = new THREE.Mesh(geometry, material);
+            var plane = new THREE.Mesh(geometry, material_shh); //testing
 
             scene.add(flatplane);
             scene.add(plane);
