@@ -22,7 +22,7 @@
                 {antialias: true});
             // renderer.setSize( window.innerWidth, window.innerHeight );
             renderer.setSize( 640, 480 );
-            // renderer.setClearColor( 0xffffff, 0);
+            renderer.setClearColor( 0xFDFFF0, 1);
             document.body.appendChild( renderer.domElement );
 
             var raycaster = new THREE.Raycaster(); // create once and reuse
@@ -35,21 +35,30 @@
             var maxheight = 4;
             var minheight = -2;
 
+            // lighting
+            var light = new THREE.DirectionalLight( 0xffffff, 1.5 );
+            light.position.set( 1, 1, 1 ).normalize();
+            scene.add(light);
+
             //load texture
+            THREE.ImageUtils.crossOrigin = "anonymous";  // or
+            THREE.ImageUtils.crossOrigin = "";// the default
             var texture = new THREE.TextureLoader().load("textures/grass_texture.jpeg");
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(4,4);
-            var material = new THREE.MeshBasicMaterial( { map: new THREE.Texture( texture, THREE.RepeatWrapping, THREE.RepeatWrapping ) } );
+            texture.repeat.set(8,8);
+            var material = new THREE.MeshPhongMaterial( { map: texture } );
+            // var meshFaceMaterial = new THREE.MeshFaceMaterial( [material] );
 
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
-                    // wireframe: true,
+                    wireframe: true,
                     side: THREE.DoubleSide,
                     alphaTest: 0
                 } );
             var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
+
 
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
             // var plane = new THREE.Mesh(geometry, mesh);
@@ -129,6 +138,37 @@
             function euclidean2D(x1, y1, x2, y2){
                 return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
             }
+
+            //manipulating the camera
+            document.onkeydown = function(event) {
+                if (!event)
+                    event = window.event;
+                var code = event.keyCode;
+                if (event.charCode && code == 0)
+                    code = event.charCode;
+                switch(code){
+                    case 37:
+                        // left
+                        alert('left!');
+                        break;
+                    case 38:
+                        // up
+                        // alert('up');
+                        camera.position.x -= 0.1;
+                        camera.position.y -= 0.1;
+                        break;
+                    case 39:
+                        // right
+                        alert('right!');
+                        break;
+                    case 40:
+                        // down
+                        alert('down!');
+                        break;
+                }
+                event.preventDefault();
+            }
+
 
             var render = function () {
                 requestAnimationFrame( render );
