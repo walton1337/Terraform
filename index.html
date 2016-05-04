@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>My first Three.js app</title>
+        <title>TerraForm</title>
         <style>
             body { margin: 0; }
             canvas { width: 100%; height: 100% }
@@ -11,7 +11,11 @@
         <script>
             //Set up the scene
             var scene = new THREE.Scene();
-            var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+            var camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+            camera.position.set(8,8,18);
+            camera.up = new THREE.Vector3(0,0,1);
+            camera.lookAt(new THREE.Vector3(-1,-1,-1));
 
             var renderer = new THREE.WebGLRenderer(
                 {antialias: true});
@@ -19,23 +23,125 @@
             // renderer.setClearColor( 0xffffff, 0);
             document.body.appendChild( renderer.domElement );
 
-            var geometry = new THREE.PlaneGeometry(10,10,50,50);
+            var raycaster = new THREE.Raycaster(); // create once and reuse
+            var mouse = new THREE.Vector2(); 
+
+            var pLength = 20;
+            var pSeg = 100;
+            var radius = 2;
+
+            var maxheight = 10;
+            var minheight = -10;
+
+            var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
                     wireframe: true
                 } );
-            var plane = new THREE.Mesh(geometry, mesh)
+            var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
 
-            for (var i = 0; i < plane.geometry.vertices.length; i++) {
-                plane.geometry.vertices[i].z = Math.sin(i/8);
-            }
-            plane.rotation.x = 2.75 * Math.PI / 4;
-            plane.rotation.z = Math.PI / 4;
 
+
+            var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
+            var plane = new THREE.Mesh(geometry, mesh);
+
+            // for (var i = 0; i < plane.geometry.vertices.length; i++) {
+            //      plane.geometry.vertices[i].z = Math.sin(i/8);
+            // }
+
+
+
+            //plane.rotation.x = 2.75 * Math.PI / 4;
+            //plane.rotation.z = Math.PI / 4;
+
+            //flatplane.rotation.x = 2.75 * Math.PI / 4;
+            //flatplane.rotation.z = Math.PI / 4;
+
+            scene.add(flatplane);
             scene.add(plane);
 
             var time = 0.0;
             camera.position.z = 15;
+
+            //window.onclick = clickfun;
+
+            var mousedownID = -1;  //Global ID of mouse down interval
+            function mousedown(event) {
+              if(mousedownID==-1)  //Prevent multimple loops!
+                 mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                 mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
+                 mousedownID = setInterval(whilemousedown, 100 /*execute every 100ms*/);
+
+
+            }
+            function mouseup(event) {
+               if(mousedownID!=-1) {  //Only stop if exists
+                 clearInterval(mousedownID);
+                 mousedownID=-1;
+               }
+
+            }
+            function whilemousedown() {
+                //mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                //mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
+                raycaster.setFromCamera( mouse, camera );
+
+                var intersect = raycaster.intersectObject(flatplane);
+
+                if ( intersect.length > 0 ) {
+
+                    var iPoint = intersect[0].point;
+
+                    for (var i = 0; i < plane.geometry.vertices.length; i++) {
+                        var gridPoint = plane.geometry.vertices[i];
+                        var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
+                        if(dist < radius){
+                            plane.geometry.vertices[i].z += raise(dist);
+                        }
+                    }
+
+                    console.log( intersect[ 0 ].point );
+
+                }
+            }
+            //Assign events
+            document.addEventListener("mousedown", mousedown);
+            document.addEventListener("mouseup", mouseup);
+            //Also clear the interval when user leaves the window with mouse
+            document.addEventListener("mouseout", mouseup);
+
+            function clickfun(){
+                mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
+                mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
+                raycaster.setFromCamera( mouse, camera );
+
+                var intersect = raycaster.intersectObject(flatplane);
+
+                if ( intersect.length > 0 ) {
+
+                    var iPoint = intersect[0].point;
+
+                    for (var i = 0; i < plane.geometry.vertices.length; i++) {
+                        var gridPoint = plane.geometry.vertices[i];
+                        var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
+                        if(dist < radius){
+                            plane.geometry.vertices[i].z += raise(dist);
+                        }
+                    }
+
+                    console.log( intersect[ 0 ].point );
+
+                }
+
+            }
+
+            function raise(dist){
+                return Math.sqrt(radius - dist) * 0.3;
+            }
+
+            function euclidean2D(x1, y1, x2, y2){
+                return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            }
 
             var render = function () {
                 requestAnimationFrame( render );
@@ -50,6 +156,8 @@
             };
 
             render();
+
+
         </script>
     </body>
 </html>
