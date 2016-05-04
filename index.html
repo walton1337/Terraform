@@ -4,6 +4,7 @@
         <style>
             body { margin: 0; }
             canvas { width: 100%; height: 100% }
+            .menu { margin: 20px;}
         </style>
     </head>
     <body>
@@ -13,49 +14,46 @@
             var scene = new THREE.Scene();
             var camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
-            camera.position.set(8,8,18);
+            camera.position.set(15,15,18);
             camera.up = new THREE.Vector3(0,0,1);
             camera.lookAt(new THREE.Vector3(-1,-1,-1));
 
             var renderer = new THREE.WebGLRenderer(
                 {antialias: true});
-            renderer.setSize( window.innerWidth, window.innerHeight );
+            // renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.setSize( 640, 480 );
             // renderer.setClearColor( 0xffffff, 0);
             document.body.appendChild( renderer.domElement );
 
             var raycaster = new THREE.Raycaster(); // create once and reuse
-            var mouse = new THREE.Vector2(); 
+            var mouse = new THREE.Vector2();
 
             var pLength = 20;
             var pSeg = 100;
             var radius = 2;
 
-            var maxheight = 10;
-            var minheight = -10;
+            var maxheight = 4;
+            var minheight = -2;
+
+            //load texture
+            var texture = new THREE.TextureLoader().load("textures/grass_texture.jpeg");
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4,4);
+            var material = new THREE.MeshBasicMaterial( { map: new THREE.Texture( texture, THREE.RepeatWrapping, THREE.RepeatWrapping ) } );
 
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
-                    wireframe: true
+                    // wireframe: true,
+                    side: THREE.DoubleSide,
+                    alphaTest: 0
                 } );
             var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
 
-
-
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
-            var plane = new THREE.Mesh(geometry, mesh);
-
-            // for (var i = 0; i < plane.geometry.vertices.length; i++) {
-            //      plane.geometry.vertices[i].z = Math.sin(i/8);
-            // }
-
-
-
-            //plane.rotation.x = 2.75 * Math.PI / 4;
-            //plane.rotation.z = Math.PI / 4;
-
-            //flatplane.rotation.x = 2.75 * Math.PI / 4;
-            //flatplane.rotation.z = Math.PI / 4;
+            // var plane = new THREE.Mesh(geometry, mesh);
+            var plane = new THREE.Mesh(geometry, material);
 
             scene.add(flatplane);
             scene.add(plane);
@@ -69,8 +67,6 @@
                 mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
               if(mousedownID==-1)  //Prevent multimple loops!
                  mousedownID = setInterval(clickfun, 50 /*execute every 100ms*/);
-
-
             }
             function mouseup(event) {
                if(mousedownID!=-1) {  //Only stop if exists
@@ -84,6 +80,10 @@
                     mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                     mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                 }
+            }
+            var direction = 1;
+            function setRaise(sign) {
+                direction = sign;
             }
             //Assign events
             document.addEventListener("mousedown", mousedown);
@@ -109,7 +109,10 @@
                         var gridPoint = plane.geometry.vertices[i];
                         var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
                         if(dist < radius){
-                            plane.geometry.vertices[i].z += raise(dist);
+                            plane.geometry.vertices[i].z += direction * raise(dist);
+                            if (plane.geometry.vertices[i].z > maxheight) {
+                                plane.geometry.vertices[i].z = maxheight;
+                            }
                         }
                     }
 
@@ -143,5 +146,14 @@
 
 
         </script>
+        <div class="menu">
+            <button type="button" onclick="setRaise(1)">Up</button>
+            <button type="button" onclick="setRaise(-1)">Down</button>
+            <button type="button">Click me</button>
+            <button type="button">Click me</button>
+            <button type="button">Click me</button>
+            <button type="button">Click me</button>
+
+        </div>
     </body>
 </html>
