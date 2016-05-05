@@ -18415,9 +18415,8 @@ THREE.ImageLoader.prototype = {
         if ( this.crossOrigin !== undefined ) image.crossOrigin = this.crossOrigin;
 
         scope.manager.itemStart( url );
-
+        this.image = image;
         image.src = url;
-
         return image;
 
     },

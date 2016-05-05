@@ -15,57 +15,54 @@
             precision highp float;
             #endif
 
+            uniform float radius;
             uniform sampler2D tOne;
             uniform sampler2D tSec;
 
             uniform vec2 mouse;
 
             varying vec2 vUv;
-            varying vec3 pos;
+            varying vec3 vPos;
 
 
             void main(void)
             {
+                float r = sqrt((vPos.x - mouse.x) * (vPos.x - mouse.x)  + (vPos.y - mouse.y) *  (vPos.y - mouse.y));
                 vec3 c;
                 vec4 Cdirt = texture2D(tOne, vUv); //dirt
                 vec4 Cgrass = texture2D(tSec, vUv); //grass
 
-                float mouse_x = abs(mouse[0]);
+                float mouse_x = mouse[0];
                 float mouse_y = mouse[1];
 
-                // if ((abs(pos[0] - mouse_x) < 100.0) && (abs(pos[1] - mouse_y) < 100.0) ) {
-                if (pos.x < mouse_x - 5.0){
+                if (r <= radius){
                     c = Cdirt.rgb;
                 } else {
                     c = Cgrass.rgb;
                 }
 
-                // c = Cb.rgb * 0.2 + Ca.rgb * 0.8;
+                // c = Cdirt.rgb * 0.2 + Cgrass.rgb * 0.8;
                 gl_FragColor = vec4(c, 1.0);
-                // if(pos.z > 0.2){
-                //     gl_FragColor= Ca;
-                // } else {
-                //     gl_FragColor = Cb;
-                // }
-
-
             }
 
         </script>
 
         <script id="vertex_shh" type="x-shader/x-vertex">
-            attribute vec3 aVertexPosition;
-
+            attribute vec3 vposition;
+            uniform float radius;
             varying vec2 vUv;
             // varying vec4 pos;
-            varying vec3 pos;
+
+            varying vec3 vPos;
+            // uniform mousedown;
+            uniform vec2 mouse;
             void main()
             {
-                pos = position;
+                vPos = vposition;
                 vUv = uv;
                 vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
                 // pos = gl_Position;
-                gl_Position = projectionMatrix * mvPosition * vec4(aVertexPosition, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
             }
 
         </script>
@@ -119,24 +116,26 @@
 
             //var attributes = {}; // custom attributes
 
-            var uniforms = {    // custom uniforms (your textures)
+            dirt_tex = new THREE.TextureLoader().load( "textures/dirt_texture.gif" )
+            water_tex = new THREE.TextureLoader().load( "textures/water.png" )
 
-              tOne: { type: "t", value: new THREE.TextureLoader().load( "textures/dirt_texture.gif" ) },
+            var uniforms = {    // custom uniforms (your textures)
+              tOne: { type: "t", value: dirt_tex},
               tSec: { type: "t", value: new THREE.TextureLoader().load("textures/grass_texture.jpeg") }, // might need to change this to new THREE.TextureLoader().load("textures/grass_texture.jpeg");
-              mouse: { type: "v2", value: new THREE.Vector2() }
+              mouse: { type: "v2", value: new THREE.Vector2() },
+              mousedown: { type: "i", value: 0},
+              radius: {type: "f", value: 2.0}
             };
 
-            var material_shh = new THREE.ShaderMaterial({
-
-              uniforms: uniforms,
-              //attributes: attributes,
-              vertexShader: vertShader,
-              fragmentShader: fragShader
-
-            });
+            // var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+            // var mesh = new THREE.Mesh( geometry, material );
 
 
-            var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
+            // var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
+            var geometry = new THREE.PlaneBufferGeometry( pLength, pLength, pSeg, pSeg );
+            var vertices = [];
+
+
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
                     wireframe: true,
@@ -145,11 +144,20 @@
                 } );
             var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
 
+            var material_shh = new THREE.ShaderMaterial({
+              uniforms: uniforms,
+              vertexShader: vertShader,
+              fragmentShader: fragShader
 
+            });
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
-            // var plane = new THREE.Mesh(geometry, mesh);
-            var plane = new THREE.Mesh(geometry, material_shh); //testing
 
+            console.log(vertices.length);
+            // var attributes = {    // custom uniforms (your textures)
+            //   vposition: { type: "f", value: plane.geometry.attributes.position.array} // might
+            // };
+            var plane = new THREE.Mesh(geometry, material_shh); //testing
+            geometry.addAttribute( "vposition", new THREE.BufferAttribute( plane.geometry.attributes.position.array, 3) );
             scene.add(flatplane);
             scene.add(plane);
 
@@ -160,12 +168,12 @@
             function mousedown(event) {
                 mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                 mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
-                // uniforms.mouse.value.x = mouse.x;
-                // uniforms.mouse.value.y = mouse.y;
+                uniforms.mousedown.value = 1;
               if(mousedownID==-1)  //Prevent multimple loops!
                  mousedownID = setInterval(clickfun, 50); /*execute every 50ms*/
             }
             function mouseup(event) {
+                uniforms.mousedown.value = 0;
                if(mousedownID!=-1) {  //Only stop if exists
                  clearInterval(mousedownID);
                  mousedownID=-1;
@@ -176,8 +184,18 @@
                 if (mousedownID!=-1){
                     mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                     mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
+                    var intersect = raycaster.intersectObject(flatplane);
+                    if (intersect.length > 0){
+                        mouse.x = intersect[0].object.geometry.vertices[intersect[0].face.a].x;
+                        mouse.y = intersect[0].object.geometry.vertices[intersect[0].face.a].y;
+                        console.log(mouse.x, mouse.y);
+                        uniforms.mouse.value.x = mouse.x;
+                        uniforms.mouse.value.y = mouse.y;
+                    }
                 }
             }
+
+
             var direction = 1;
             function setRaise(sign) {
                 direction = sign;
@@ -197,33 +215,29 @@
                 raycaster.setFromCamera( mouse, camera );
 
                 // var intersect = raycaster.intersectObject(flatplane);
-                var intersect = raycaster.intersectObject(plane);
+                var intersect = raycaster.intersectObject(flatplane);
                 // console.log(intersect[0].face.color);
                 // intersect[0].face.color.setHex( Math.random() * 0xffffff );
                 // intersect[0].object.geometry.colorsNeedUpdate = true;
+                // if ( intersect.length > 0 ) {
 
-                // for ( var i = 0; i < intersect.length; i++ ) {
-                //     intersect[i].object.geometry.faces[i].color.setHex( 0xff0000 );
+                //     var iPoint = intersect[0].point;
+                //     for (var i = 0; i < plane.geometry.attributes.position.length; i++) {
+                //         var gridPoint = plane.geometry.vertices[i];
+                //         var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
+                //         if(dist < radius){
+                //             // plane.geometry.vertices[i].z += direction * raise(dist);
+                //             // if (plane.geometry.vertices[i].z > maxheight) {
+                //             //     plane.geometry.vertices[i].z = maxheight;
+                //             // }
+                //             // plane.geometry.vertices[i].color.setHex(0xFF0000);
+                //         }
+                //     }
+
+                //     console.log( intersect[ 0 ].point );
+                //     uniforms.mouse.value.x = intersect[0].point.x;
+                //     uniforms.mouse.value.y = intersect[0].point.y;
                 // }
-                if ( intersect.length > 0 ) {
-
-                    var iPoint = intersect[0].point;
-                    for (var i = 0; i < plane.geometry.vertices.length; i++) {
-                        var gridPoint = plane.geometry.vertices[i];
-                        var dist = euclidean2D(iPoint.x, iPoint.y, gridPoint.x, gridPoint.y);
-                        if(dist < radius){
-                            // plane.geometry.vertices[i].z += direction * raise(dist);
-                            // if (plane.geometry.vertices[i].z > maxheight) {
-                            //     plane.geometry.vertices[i].z = maxheight;
-                            // }
-                            // plane.geometry.vertices[i].color.setHex(0xFF0000);
-                        }
-                    }
-
-                    console.log( intersect[ 0 ].point );
-                    uniforms.mouse.value.x = intersect[0].point.x;
-                    uniforms.mouse.value.y = intersect[0].point.y;
-                }
 
             }
 
@@ -285,6 +299,13 @@
                 camera.updateProjectionMatrix()
             }
 
+            function setTexture(num){
+                if (num == 0)
+                    uniforms.tOne.value = water_tex;
+                else
+                    uniforms.tOne.value = dirt_tex;
+            }
+
             window.addEventListener('DOMMouseScroll', mousewheel, false);
             window.addEventListener('mousewheel', mousewheel, false);
 
@@ -301,17 +322,6 @@
             };
 
 
-            // Texture painting
-            // var ctx = renderer.getContext("experimental-webgl");
-            // var dirt_tex = new THREE.TextureLoader().load( "textures/dirt_texture.gif");
-            // var dirt_mat = new THREE.MeshBasicMaterial({map: dirt_tex});
-            // mesh.material = dirt_mat;
-            // var renderTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
-            // renderer.render(scene, camera, renderTarget);
-            // var arr = new Uint8Array(4);
-            // ctx.readPixels(mouse.x, mouse.y, 1,1 ctx.RGBA, ctx.UNSIGNED_BYTE, arr);
-            // var id = arr[0] +":"+arr[1]+":"+arr[2];
-            // var texelX = co
             render();
 
 
@@ -319,8 +329,8 @@
         <div class="menu">
             <button type="button" onclick="setRaise(1)">Up</button>
             <button type="button" onclick="setRaise(-1)">Down</button>
-            <button type="button">Click me</button>
-            <button type="button">Click me</button>
+            <button type="button" onclick="setTexture(0)">Water Brush</button>
+            <button type="button" onclick="setTexture(1)">Dirt Brush</button>
             <button type="button">Click me</button>
             <button type="button">Click me</button>
 
