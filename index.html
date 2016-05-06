@@ -49,7 +49,7 @@
                 float dirt_t = 1.8;
                 float dirt_b = 0.6;
 
-                float grass_t = 0.2;
+                float grass_t = 0.1;
                 float grass_b = -0.2;
 
                 if (vPos.z <= grass_b) {
@@ -119,10 +119,10 @@
             //Set up the scene
             var scene = new THREE.Scene();
             var camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 1000 );
-
-            camera.position.set(15,15,18);
+            var theta = 0.0;
+            camera.position.set(25 * Math.cos(theta), 25 * Math.sin(theta),15);
             camera.up = new THREE.Vector3(0,0,1);
-            camera.lookAt(new THREE.Vector3(-1,-1,-1));
+            camera.lookAt(new THREE.Vector3(0,0,0));
 
             var renderer = new THREE.WebGLRenderer(
                 {antialias: true});
@@ -228,7 +228,7 @@
 
             shadowplane.castShadow = true;
             plane.receiveShadow = true;
-            
+
             scene.add(flatplane);
             scene.add(plane);
 
@@ -328,30 +328,67 @@
                 if (!event)
                     event = window.event;
                 var code = event.keyCode;
-                if (event.charCode && code == 0)
+                if (event.charCode && code == 0) {
                     code = event.charCode;
+                }
+                var gox = 1;
+                var goy = 1;
                 switch(code){
                     case 37:
                         // left
                         camera.position.x += 0.15;
                         camera.position.y -= 0.15;
                         break;
-                    case 38:
-                        // up
-                        // alert('up');
-                        camera.position.x -= 0.15;
-                        camera.position.y -= 0.15;
-                        break;
+                    // case 38:
+                    //     // up
+                    //     // alert('up');
+                    //     camera.position.x -= 0.15;
+                    //     camera.position.y -= 0.15;
+                    //     break;
                     case 39:
                         // right
                         camera.position.x -= 0.15;
                         camera.position.y += 0.15;
                         break;
-                    case 40:
-                        // down
-                        camera.position.x += 0.15;
-                        camera.position.y += 0.15;
+                    // case 40:
+                    //     // down
+                    //     camera.position.x += 0.15;
+                    //     camera.position.y += 0.15;
+                    //     break;
+                    case 65:
+                        //a
+                        // theta -= 0.05;
+                        // camera.position.x = 25 * Math.cos(theta);
+                        // camera.position.y = 25 * Math.sin(theta);
+                        // camera.lookAt(new THREE.Vector3(0,0,0));
+                        setInterval(rotate(-1), 5);
+                        clearInterval();
                         break;
+                    case 68:
+                        //d
+                        // theta += 0.05;
+                        // camera.position.x = 25 * Math.cos(theta);
+                        // camera.position.y = 25 * Math.sin(theta);
+                        // camera.lookAt(new THREE.Vector3(0,0,0));
+                        setInterval(rotate(1), 5);
+                        clearInterval();
+                        break;
+                    // case 87:
+                    //     //w
+                    //     if (camera.position.x > 0) {
+                    //         gox = -1;
+                    //     }
+                    //     if (camera.position.y > 0){
+                    //         goy = -1;
+                    //     }
+                    //     camera.position.x += gox * 0.15;
+                    //     camera.position.y += goy * 0.15;
+                    //     break;
+                    // case 83:
+                    //     //s
+                    //     camera.position.x += 0.15;
+                    //     camera.position.y += 0.15;
+                    //     break;
                 }
                 event.preventDefault();
             }
@@ -381,28 +418,36 @@
             var z_rot = 0.02
             function rotate(dir){
                 if (dir > 0){
-                    plane.rotateZ(z_rot);
+                    theta += 0.05;
+
                 } else {
-                    plane.rotateZ(-z_rot);
+                    theta -= 0.05;
                 }
+                camera.position.x = 25 * Math.cos(theta);
+                camera.position.y = 25 * Math.sin(theta);
+                camera.lookAt(new THREE.Vector3(0,0,0));
             }
             var render = function () {
                 requestAnimationFrame( render );
                 plane.geometry.verticesNeedUpdate = true;
+                // for (var i = 0; i < plane.geometry.vertices.length; i++) {
+                //     plane.geometry.vertices[i].z = Math.sin(time + i/8);
+                // }
+
+                // time += 0.05;
+                // plane.rotation.z += 0.01;
+                // uniforms.rand.value = Math.random() % 5;
+                // console.log(colored.size);
+
                 renderer.render(scene, camera);
             };
 
 
             render();
         </script>
-        <div class="menu">
             <button type="button" onclick="setRaise(1)">Up</button>
             <button type="button" onclick="setRaise(-1)">Down</button>
-            <button type="button" onclick="setTexture(0)">Water Brush</button>
-            <button type="button" onclick="setTexture(1)">Dirt Brush</button>
             <button type="button" onclick="rotate(-1)">Rotate left</button>
             <button type="button" onclick="rotate(1)">Rotate right</button>
-
-        </div>
     </body>
 </html>
