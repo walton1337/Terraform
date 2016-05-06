@@ -19,7 +19,10 @@
             uniform sampler2D tDir;
             uniform sampler2D tGra;
             uniform sampler2D tWat;
+            uniform sampler2D tRoc;
+            uniform sampler2D tSno;
             uniform vec2 mouse;
+            uniform float textRepeat;
 
             varying vec2 vUv;
             varying vec3 vPos;
@@ -29,23 +32,46 @@
             {
 
                 int i = 0;
-                vec4 Cdirt  = texture2D(tDir, vUv); //dirt
-                vec4 Cgrass = texture2D(tGra, vUv); //grass
+                vec4 Cdirt  = texture2D(tDir, vUv * 20.0); //dirt
+                vec4 Cgrass = texture2D(tGra, vUv * textRepeat); //grass
+                vec4 Crock = texture2D(tRoc, vUv * 20.0); //rock
+                vec4 Csnow = texture2D(tSno, vUv); //snow
                 vec4 Cwater = texture2D(tWat, vUv); //water
                 vec3 c = Cgrass.rgb;
                 // for (i = 0; i < colored.length; i++){
                 //     float r = sqrt((vPos.x - colored[i].x) * (vPos.x - colored[i].x)  + (vPos.y - colored[i].y) *  (vPos.y - colored[i].y));
-                if (vPos.z <= -0.2) {
+
+                float snow_b = 3.8;
+
+                float rock_t = 3.4;
+                float rock_b = 2.4;
+
+                float dirt_t = 1.8;
+                float dirt_b = 0.6;
+
+                float grass_t = 0.2;
+                float grass_b = -0.2;
+
+                if (vPos.z <= grass_b) {
                     c = Cwater.rgb;
                 }
-                if (vPos.z >= 0.2) {
+                else if (vPos.z >= grass_t && vPos.z < dirt_b) {
+                    c = Cdirt.rgb * ((vPos.z - grass_t)/(dirt_b - grass_t)) + Cgrass.rgb * (1.0 - (vPos.z - grass_t)/(dirt_b - grass_t));
+                }
+                else if (vPos.z >= dirt_b && vPos.z < dirt_t) {
                     c = Cdirt.rgb;
                 }
-                if (vPos.z >= 0.7) {
-                    c = vec3(0.32,0.37,0.38);
+                else if (vPos.z >= dirt_t && vPos.z < rock_b) {
+                    c = Crock.rgb * ((vPos.z - dirt_t)/(rock_b - dirt_t)) + Cdirt.rgb * (1.0 - (vPos.z - dirt_t)/(rock_b - dirt_t));
                 }
-                if (vPos.z >= 3.5){
-                    c = vec3(1.0,1.0,1.0);
+                else if (vPos.z >= rock_b && vPos.z < rock_t) {
+                    c = Crock.rgb;
+                }
+                else if (vPos.z >= rock_t && vPos.z < snow_b) {
+                    c = Csnow.rgb * ((vPos.z - rock_t)/(snow_b - rock_t)) + Crock.rgb * (1.0 - (vPos.z - rock_t)/(snow_b - rock_t));
+                }
+                else if (vPos.z >= snow_b){
+                    c = Csnow.rgb;
                 }
 
                 float mouse_x = mouse[0];
@@ -67,6 +93,7 @@
             uniform float rand;
             uniform int mousedown;
             uniform vec2 mouse;
+            uniform float textRepeat;
             void main()
             {
                 // vec3 newPos = position;
@@ -102,6 +129,20 @@
             // renderer.setSize( window.innerWidth, window.innerHeight );
             renderer.setSize( 640, 480 );
             renderer.setClearColor( 0xFDFFF0, 1);
+
+            //shadow stuff
+            renderer.shadowMapEnabled = true;
+            renderer.shadowMapSoft = true;
+
+            renderer.shadowCameraNear = 3;
+            renderer.shadowCameraFar = camera.far;
+            renderer.shadowCameraFov = 50;
+
+            renderer.shadowMapBias = 0.0039;
+            renderer.shadowMapDarkness = 0.5;
+            renderer.shadowMapWidth = 1024;
+            renderer.shadowMapHeight = 1024;
+
             document.body.appendChild( renderer.domElement );
 
             var raycaster = new THREE.Raycaster(); // create once and reuse
@@ -115,39 +156,47 @@
             var minheight = -0.21;
 
             // lighting
-            var light = new THREE.DirectionalLight( 0xffffff, 1.5 );
-            light.position.set( 1, 1, 1 ).normalize();
+            var light = new THREE.DirectionalLight( 0xffffff, 1 );
+            light.position.x = -5;
+            light.position.z = -5;
+            light.position.y = -55;
+            light.castShadow = true;
             scene.add(light);
 
             //load texture
             THREE.ImageUtils.crossOrigin = "anonymous";  // or
             THREE.ImageUtils.crossOrigin = "";// the default
-            // var texture = new THREE.TextureLoader().load("textures/grass_texture.jpeg");
-            // texture.wrapS = THREE.RepeatWrapping;
-            // texture.wrapT = THREE.RepeatWrapping;
-            // texture.repeat.set(8,8);
+
             var material = new THREE.MeshPhongMaterial( { /*map: texture,*/ vertexColors: THREE.VertexColors } );
-            // var meshFaceMaterial = new THREE.MeshFaceMaterial( [material] );
 
             //trying blend
             var vertShader = document.getElementById('vertex_shh').innerHTML;
             var fragShader = document.getElementById('fragment_shh').innerHTML;
 
-            //var attributes = {}; // custom attributes
 
             dirt_tex = new THREE.TextureLoader().load( "textures/dirt_texture.gif" );
             water_tex = new THREE.TextureLoader().load( "textures/water.png" );
+            rock_tex = new THREE.TextureLoader().load( "textures/rock.jpg" );
+            snow_tex = new THREE.TextureLoader().load( "textures/snow.jpg" );
 
             var uniforms = {    // custom uniforms (your textures)
               tDir: { type: "t", value: dirt_tex},
               tGra: { type: "t", value: new THREE.TextureLoader().load("textures/grass_texture.jpeg") },
               tWat: { type: "t", value: water_tex},
+              tRoc: { type: "t", value: rock_tex},
+              tSno: { type: "t", value: snow_tex},
               verts: {type: "f", value: zvals},
+              textRepeat: {type: 'f', value: 10},
               mouse: { type: "v2", value: new THREE.Vector2() },
               mousedown: { type: "i", value: 0},
               radius: {type: "f", value: 2.0},
               colored: {type: "v2", value: colored}
             };
+
+            uniforms.tDir.value.wrapS = uniforms.tDir.value.wrapT = THREE.RepeatWrapping;
+            uniforms.tGra.value.wrapS = uniforms.tGra.value.wrapT = THREE.RepeatWrapping;
+            uniforms.tSno.value.wrapS = uniforms.tSno.value.wrapT = THREE.RepeatWrapping;
+            uniforms.tRoc.value.wrapS = uniforms.tRoc.value.wrapT = THREE.RepeatWrapping;
 
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             // var geometry = new THREE.PlaneBufferGeometry( pLength, pLength, pSeg, pSeg );
@@ -156,9 +205,10 @@
 
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
-                    wireframe: true,
+                    //wireframe: true,
                     side: THREE.DoubleSide,
-                    alphaTest: 0
+                    alphaTest: 0,
+                    visible: false
                 } );
             var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
 
@@ -170,13 +220,15 @@
             });
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
 
-            console.log(vertices.length);
-            // var attributes = {    // custom uniforms (your textures)
-            //   vposition: { type: "f", value: plane.geometry.attributes.position.array} // might
-            // };
+            var shadowplane = new THREE.Mesh(geometry, mesh); // shadowplane
+
+            //console.log(vertices.length);
+
             var plane = new THREE.Mesh(geometry, material_shh); //testing
-            // geometry.addAttribute( "vposition", new THREE.BufferAttribute( plane.geometry.attributes.position.array, 3) );
-            // geometry.attributes.position.needsUpdate = true;
+
+            shadowplane.castShadow = true;
+            plane.receiveShadow = true;
+            
             scene.add(flatplane);
             scene.add(plane);
 
@@ -189,7 +241,7 @@
                 mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                 uniforms.mousedown.value = 1;
               if(mousedownID==-1)  //Prevent multimple loops!
-                 mousedownID = setInterval(clickfun, 50); /*execute every 50ms*/
+                 mousedownID = setInterval(clickfun, 30); /*execute every 50ms*/
             }
             function mouseup(event) {
                 uniforms.mousedown.value = 0;
@@ -213,48 +265,6 @@
                     }
                 }
             }
-            // function mousedown(event) {
-            //     mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
-            //     mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
-            //     uniforms.mousedown.value = 1;
-            //     zval += direction * 0.5;
-            //     uniforms.vert.value = zval;
-            //     var intersect = raycaster.intersectObject(flatplane);
-            //         console.log("about to intersected");
-            //     if (intersect.length > 0){
-            //         console.log("intersected");
-            //         mouse.x = intersect[0].object.geometry.vertices[intersect[0].face.a].x;
-            //         mouse.y = intersect[0].object.geometry.vertices[intersect[0].face.a].y;
-            //         console.log(mouse.x, mouse.y);
-            //         uniforms.mouse.value.x = mouse.x;
-            //         uniforms.mouse.value.y = mouse.y;
-            //     }
-            //   // if(mousedownID==-1)  //Prevent multimple loops!
-            //   //    mousedownID = setInterval(clickfun, 50); /*execute every 50ms*/
-            // }
-            // function mouseup(event) {
-            //     uniforms.mousedown.value = 0;
-            //    // if(mousedownID!=-1) {  //Only stop if exists
-            //    //   clearInterval(mousedownID);
-            //    //   mousedownID=-1;
-            //    }
-
-            // // }
-            // function mousemove() {
-            //     // if (mousedownID!=-1){
-            //         mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
-            //         mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
-            //         var intersect = raycaster.intersectObject(flatplane);
-            //         if (intersect.length > 0){
-            //             mouse.x = intersect[0].object.geometry.vertices[intersect[0].face.a].x;
-            //             mouse.y = intersect[0].object.geometry.vertices[intersect[0].face.a].y;
-            //             console.log(mouse.x, mouse.y);
-            //             uniforms.mouse.value.x = mouse.x;
-            //             uniforms.mouse.value.y = mouse.y;
-            //         }
-            //     }
-            // // }
-
 
             var direction = 1;
             function setRaise(sign) {
@@ -267,7 +277,6 @@
             document.addEventListener("mouseout", mouseup);
             document.addEventListener("mousemove", mousemove);
 
-            //window.onclick = clickfun;
             var zvals = new Array(pSeg + 1);
             for (var i = 0; i < pSeg + 1; i++){
                 zvals[i] = new Array(pSeg + 1);
@@ -280,13 +289,7 @@
                 // mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                 // mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                 raycaster.setFromCamera( mouse, camera );
-                // zval += direction * 0.2;
-                // uniforms.vert.value = zval;
-                // var intersect = raycaster.intersectObject(flatplane);
                 var intersect = raycaster.intersectObject(flatplane);
-                // console.log(intersect[0].face.color);
-                // intersect[0].face.color.setHex( Math.random() * 0xffffff );
-                // intersect[0].object.geometry.colorsNeedUpdate = true;
                 if ( intersect.length > 0 ) {
                     var iPoint = intersect[0].point;
                     for (var i = 0; i < flatplane.geometry.vertices.length; i++) {
@@ -302,7 +305,6 @@
                             }
                             colored.add(new THREE.Vector2(iPoint.x, iPoint.y)); //(x,y) colored now
                             uniforms.colored.value = colored;
-                            // plane.geometry.vertices[i].color.setHex(0xFF0000);
                         }
                     }
                     console.log( intersect[ 0 ].point );
@@ -387,14 +389,6 @@
             var render = function () {
                 requestAnimationFrame( render );
                 plane.geometry.verticesNeedUpdate = true;
-                // for (var i = 0; i < plane.geometry.vertices.length; i++) {
-                //     plane.geometry.vertices[i].z = Math.sin(time + i/8);
-                // }
-
-                // time += 0.05;
-                // plane.rotation.z += 0.01;
-                // uniforms.rand.value = Math.random() % 5;
-                // console.log(colored.size);
                 renderer.render(scene, camera);
             };
 
