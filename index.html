@@ -23,9 +23,11 @@
             uniform sampler2D tSno;
             uniform vec2 mouse;
             uniform float textRepeat;
+            uniform vec3 lightPosition;
 
             varying vec2 vUv;
             varying vec3 vPos;
+            varying vec3 vNormal;
 
 
             void main(void)
@@ -38,6 +40,9 @@
                 vec4 Csnow = texture2D(tSno, vUv); //snow
                 vec4 Cwater = texture2D(tWat, vUv); //water
                 vec3 c = Cgrass.rgb;
+
+                vec3 lightDir = normalize(lightPosition - vPos);
+
                 // for (i = 0; i < colored.length; i++){
                 //     float r = sqrt((vPos.x - colored[i].x) * (vPos.x - colored[i].x)  + (vPos.y - colored[i].y) *  (vPos.y - colored[i].y));
 
@@ -74,10 +79,11 @@
                     c = Csnow.rgb;
                 }
 
+                c = c * 0.7 + 0.3 * max(0.0, dot(vNormal, lightDir));
+
                 float mouse_x = mouse[0];
                 float mouse_y = mouse[1];
 
-                // c = Cdirt.rgb * 0.2 + Cgrass.rgb * 0.8;
                 gl_FragColor = vec4(c, 1.0);
             }
 
@@ -86,17 +92,24 @@
         <script id="vertex_shh" type="x-shader/x-vertex">
             // attribute vec3 vposition;
             uniform float radius;
-            varying vec2 vUv;
+            
             // varying vec4 pos;
             uniform float vert;
-            varying vec3 vPos;
+            
             uniform float rand;
             uniform int mousedown;
             uniform vec2 mouse;
             uniform float textRepeat;
+
+            varying vec3 vNormal;
+            varying vec2 vUv;
+            varying vec3 vPos;
+
             void main()
             {
                 // vec3 newPos = position;
+
+                vNormal = normalMatrix * vec3(normal);
                 vPos = position;
                 vUv = uv;
                 // float r = sqrt((position.x - mouse.x) * (position.x - mouse.x)  + (position.y - mouse.y) *  (position.y - mouse.y));
@@ -156,12 +169,12 @@
             var minheight = -0.21;
 
             // lighting
-            var light = new THREE.DirectionalLight( 0xffffff, 1 );
-            light.position.x = -5;
-            light.position.z = -5;
-            light.position.y = -55;
-            light.castShadow = true;
-            scene.add(light);
+            // var light = new THREE.DirectionalLight( 0xffffff, 1 );
+            // light.position.x = -5;
+            // light.position.z = -5;
+            // light.position.y = -55;
+            // light.castShadow = true;
+            // scene.add(light);
 
             //load texture
             THREE.ImageUtils.crossOrigin = "anonymous";  // or
@@ -190,7 +203,8 @@
               mouse: { type: "v2", value: new THREE.Vector2() },
               mousedown: { type: "i", value: 0},
               radius: {type: "f", value: 2.0},
-              colored: {type: "v2", value: colored}
+              colored: {type: "v2", value: colored},
+              lightPosition: {type: 'v3', value: new THREE.Vector3(10, 10, 10)},
             };
 
             uniforms.tDir.value.wrapS = uniforms.tDir.value.wrapT = THREE.RepeatWrapping;
@@ -201,7 +215,6 @@
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             // var geometry = new THREE.PlaneBufferGeometry( pLength, pLength, pSeg, pSeg );
             var vertices = [];
-
 
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
@@ -222,11 +235,9 @@
 
             var shadowplane = new THREE.Mesh(geometry, mesh); // shadowplane
 
-            //console.log(vertices.length);
+            var plane = new THREE.Mesh(geometry, material_shh);
 
-            var plane = new THREE.Mesh(geometry, material_shh); //testing
-
-            shadowplane.castShadow = true;
+            plane.castShadow = true;
             plane.receiveShadow = true;
 
             scene.add(flatplane);
@@ -306,6 +317,7 @@
                             colored.add(new THREE.Vector2(iPoint.x, iPoint.y)); //(x,y) colored now
                             uniforms.colored.value = colored;
                         }
+                        
                     }
                     console.log( intersect[ 0 ].point );
                     uniforms.mouse.value.x = intersect[0].point.x;
@@ -429,7 +441,11 @@
             }
             var render = function () {
                 requestAnimationFrame( render );
+
+                plane.geometry.computeFaceNormals();
+                plane.geometry.computeVertexNormals();  
                 plane.geometry.verticesNeedUpdate = true;
+                plane.geometry.normalsNeedUpdate = true;
                 // for (var i = 0; i < plane.geometry.vertices.length; i++) {
                 //     plane.geometry.vertices[i].z = Math.sin(time + i/8);
                 // }
