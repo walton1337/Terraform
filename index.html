@@ -3,12 +3,32 @@
         <title>TerraForm</title>
         <style>
             body { margin: 0; }
-            canvas { width: 100%; height: 100% }
-            .menu { margin: 30px;}
+            canvas { width: 100%; height: 100%; }
+            .menu { margin-left: 30px;}
         </style>
     </head>
     <body>
-        <script src="three.js"></script>
+        <script src="js/three.js"></script>
+        <script src="js/stats.js-master/src/Stats.js"></script>
+        <script>
+            var stats = new Stats();
+            stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+            document.body.appendChild( stats.dom );
+
+            function animate() {
+
+                stats.begin();
+
+                // monitored code goes here
+
+                stats.end();
+
+                requestAnimationFrame( animate );
+
+            }
+
+            requestAnimationFrame( animate );
+        </script>
 
         <script id="fragment_shh" type="x-shader/x-fragment">
             #ifdef GL_ES
@@ -22,10 +42,12 @@
             uniform sampler2D tWat;
             uniform sampler2D tRoc;
             uniform sampler2D tSno;
+            uniform sampler2D tLav;
             uniform vec2 mouse;
             uniform float textRepeat;
             uniform vec3 lightPosition;
             uniform float time;
+            uniform bool lava;
 
             varying vec2 vUv;
             varying vec3 vPos;
@@ -42,7 +64,13 @@
                 vec4 Csand = texture2D(tSan, vUv * 20.0); //sand
                 vec4 Csnow = texture2D(tSno, vUv); //snow
                 vec4 Cwater = texture2D(tWat, vUv); //water
-                vec3 c = Cwater.rgb;
+                vec4 Clava = texture2D(tLav, vUv); //lava
+                vec3 c;
+                if (lava) {
+                    c = Clava.rgb;
+                } else {
+                    c = Cwater.rgb;
+                }
 
                 vec3 lightDir = normalize(lightPosition - vPos);
 
@@ -109,7 +137,7 @@
                 float d = sqrt((vPos.x - mouse.x) * (vPos.x - mouse.x)  + (vPos.y - mouse.y) *  (vPos.y - mouse.y));
 
                 if (d < radius){
-                    c  = normalize(c + vec3(1.0, 0, 0) * (d*d/radius));
+                    c  = normalize(c + vec3(0.1, 0, 0.6) * (d*d/radius));
                 }
                 if (d < radius + 0.05 && d > radius - 0.05){
                     c  = vec3(0.0, 0.0, 0.0);
@@ -123,10 +151,10 @@
         <script id="vertex_shh" type="x-shader/x-vertex">
             // attribute vec3 vposition;
             uniform float radius;
-            
+
             // varying vec4 pos;
             uniform float vert;
-            
+
             uniform float rand;
             uniform int mousedown;
             uniform vec2 mouse;
@@ -220,6 +248,7 @@
             rock_tex = new THREE.TextureLoader().load( "textures/rock.jpg" );
             snow_tex = new THREE.TextureLoader().load( "textures/snow.jpg" );
             sand_tex = new THREE.TextureLoader().load( "textures/sand.jpg" );
+            lava_tex = new THREE.TextureLoader().load( "textures/lava.jpeg" );
 
             var uniforms = {    // custom uniforms (your textures)
               tDir: { type: "t", value: dirt_tex},
@@ -228,6 +257,7 @@
               tRoc: { type: "t", value: rock_tex},
               tSno: { type: "t", value: snow_tex},
               tSan: { type: "t", value: sand_tex},
+              tLav: { type: "t", value: lava_tex},
               verts: {type: "f", value: zvals},
               textRepeat: {type: 'f', value: 10},
               mouse: { type: "v2", value: new THREE.Vector2() },
@@ -235,7 +265,8 @@
               radius: {type: "f", value: 2.0},
               colored: {type: "v2", value: colored},
               lightPosition: {type: 'v3', value: lightPos},
-              time: {type: "f", value: time}
+              time: {type: "f", value: time},
+              lavaOn: {type: "b", value: lava}
             };
 
             uniforms.tDir.value.wrapS = uniforms.tDir.value.wrapT = THREE.RepeatWrapping;
@@ -310,14 +341,14 @@
 
             //var cloud = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), cloud_shh);
 
-            //sun.position.set(lightPos);          
+            //sun.position.set(lightPos);
 
             plane.castShadow = true;
             plane.receiveShadow = true;
 
             scene.add(flatplane);
             scene.add(plane);
-            //scene.add(sun);
+            scene.add(sun);
 
             var time = 0.0;
             camera.position.z = 15;
@@ -396,7 +427,7 @@
                             colored.add(new THREE.Vector2(iPoint.x, iPoint.y)); //(x,y) colored now
                             uniforms.colored.value = colored;
                         }
-                        
+
                     }
                     uniforms.mouse.value.x = intersect[0].point.x;
                     uniforms.mouse.value.y = intersect[0].point.y;
@@ -473,7 +504,7 @@
                         //s
                         if (camera.position.z > 0)
                             camera.position.z -= 0.35;
-                        camera.lookAt(new THREE.Vector3(0,0,0));                        
+                        camera.lookAt(new THREE.Vector3(0,0,0));
                         break;
                 }
                 event.preventDefault();
@@ -502,6 +533,10 @@
             window.addEventListener('mousewheel', mousewheel, false);
 
             var z_rot = 0.02
+            var timeofday = true;
+            function setTimeOfDay(x){
+                timeofday = !timeofday;
+            }
             function rotate(dir){
                 if (dir > 0){
                     theta += 0.05;
@@ -516,26 +551,29 @@
             var render = function () {
                 requestAnimationFrame( render );
 
-                time = clock.getElapsedTime();
+
+                    time = clock.getElapsedTime();
 
                 plane.geometry.computeFaceNormals();
-                plane.geometry.computeVertexNormals();  
+                plane.geometry.computeVertexNormals();
                 plane.geometry.verticesNeedUpdate = true;
                 plane.geometry.normalsNeedUpdate = true;
                 sun.geometry.verticesNeedUpdate = true;
                 sun.geometry.normalsNeedUpdate = true;
 
-                lightPos.y = 5 * Math.cos(time/3.0);
-                lightPos.x = 5 * Math.sin(time/3.0);
-                console.log(sun.position);
-                sun.position.set(lightPos.x, lightPos.y, lightPos.z);  
+                if (timeofday){
+                    lightPos.z = 12 * Math.cos(time/3.0);
+                    lightPos.y = 12 * Math.sin(time/3.0);
+                }
+
+                // console.log(sun.position);
+                sun.position.set(lightPos.x, lightPos.y, lightPos.z);
                 uniforms.time.value = time;
 
-                console.log(uniforms.time.value );
+                // console.log(uniforms.time.value );
 
                 renderer.render(scene, camera);
             };
-        
 
             function updateTextInput(val) {
                radius = val;
@@ -543,6 +581,8 @@
                document.getElementById("radius_val").innerHTML = radius.toString();
 
             }
+            var lava = false;
+
 
             render();
         </script>
@@ -558,7 +598,8 @@
                 <button type="button" onclick="setRaise(-1)">Down</button>
                 <button type="button" onclick="rotate(-1)">Rotate left</button>
                 <button type="button" onclick="rotate(1)">Rotate right</button>
+                <button type="button" onclick="setTimeOfDay()">Time of Day</button>
             </div>
-            
+
     </body>
 </html>
