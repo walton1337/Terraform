@@ -25,6 +25,7 @@
             uniform vec2 mouse;
             uniform float textRepeat;
             uniform vec3 lightPosition;
+            uniform float time;
 
             varying vec2 vUv;
             varying vec3 vPos;
@@ -62,7 +63,7 @@
                 float sand_t = 0.25;
                 float sand_b = 0.2;
 
-                float water_t = 0.0;
+                float water_t = 0.0 + abs(0.1 * sin(2.0*time));
 
                 float zpos = vPos.z + 0.5;
 
@@ -100,10 +101,19 @@
                     c = Csnow.rgb;
                 }
 
-                c = c * 0.7 + 0.3 * max(0.0, dot(vNormal, lightDir));
+                c = c * 0.7 + 0.3 * dot(vNormal, lightDir);
 
                 float mouse_x = mouse[0];
                 float mouse_y = mouse[1];
+
+                float d = sqrt((vPos.x - mouse.x) * (vPos.x - mouse.x)  + (vPos.y - mouse.y) *  (vPos.y - mouse.y));
+
+                if (d < radius){
+                    c  = normalize(c + vec3(1.0, 0, 0) * (d*d/radius));
+                }
+                if (d < radius + 0.05 && d > radius - 0.05){
+                    c  = vec3(0.0, 0.0, 0.0);
+                }
 
                 gl_FragColor = vec4(c, 1.0);
             }
@@ -147,8 +157,6 @@
 
         </script>
 
-
-
         <script>
             //Set up the scene
             var scene = new THREE.Scene();
@@ -189,23 +197,22 @@
             var maxheight = 4;
             var minheight = -0.51;
 
-            // lighting
-            // var light = new THREE.DirectionalLight( 0xffffff, 1 );
-            // light.position.x = -5;
-            // light.position.z = -5;
-            // light.position.y = -55;
-            // light.castShadow = true;
-            // scene.add(light);
+            var time = 0;
+
+            var clock = new THREE.Clock();
+
+            var lightPos = new THREE.Vector3(0,0,10);
 
             //load texture
             THREE.ImageUtils.crossOrigin = "anonymous";  // or
             THREE.ImageUtils.crossOrigin = "";// the default
 
-            var material = new THREE.MeshPhongMaterial( { /*map: texture,*/ vertexColors: THREE.VertexColors } );
-
             //trying blend
             var vertShader = document.getElementById('vertex_shh').innerHTML;
             var fragShader = document.getElementById('fragment_shh').innerHTML;
+
+            // var cloudVert = document.getElementById('vertex_cloud').innerHTML;
+            // var cloudFrag = document.getElementById('fragment_cloud').innerHTML;
 
 
             dirt_tex = new THREE.TextureLoader().load( "textures/dirt_texture.gif" );
@@ -227,7 +234,8 @@
               mousedown: { type: "i", value: 0},
               radius: {type: "f", value: 2.0},
               colored: {type: "v2", value: colored},
-              lightPosition: {type: 'v3', value: new THREE.Vector3(10, 10, 10)},
+              lightPosition: {type: 'v3', value: lightPos},
+              time: {type: "f", value: time}
             };
 
             uniforms.tDir.value.wrapS = uniforms.tDir.value.wrapT = THREE.RepeatWrapping;
@@ -236,6 +244,29 @@
             uniforms.tRoc.value.wrapS = uniforms.tRoc.value.wrapT = THREE.RepeatWrapping;
             uniforms.tSan.value.wrapS = uniforms.tSan.value.wrapT = THREE.RepeatWrapping;
 
+            //-----------noise function for cloud
+            // var noiseSize = 256;
+            // var size = noiseSize * noiseSize;
+            // var data = new Uint8Array( 4 * size );
+            // for ( var i = 0; i < size * 4; i ++ ) {
+            //     data[ i ] = Math.random() * 255 | 0;
+            // }
+            // var dt = new THREE.DataTexture( data, noiseSize, noiseSize, THREE.RGBAFormat );
+            // dt.wrapS = THREE.RepeatWrapping;
+            // dt.wrapT = THREE.RepeatWrapping;
+            // dt.needsUpdate = true;
+
+            // dt.magFilter = THREE.LinearMipMapLinearFilter;
+            // dt.minFilter = THREE.LinearMipMapLinearFilter;
+            //---------------------------------------
+
+            //-------------cloud uniforms------------------
+            // var cloudUniforms = {
+            //   lightPosition: {type: 'v3', value: lightPos},
+            //   //tCloud: {type: "t", value: dt},
+            //   time: {time: "f", value: time}
+            // };
+
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             // var geometry = new THREE.PlaneBufferGeometry( pLength, pLength, pSeg, pSeg );
             var vertices = [];
@@ -243,9 +274,9 @@
             var mesh = new THREE.MeshBasicMaterial( {
                     color: 0xffffff,
                     //wireframe: true,
-                    side: THREE.DoubleSide,
-                    alphaTest: 0,
-                    visible: false
+                    //side: THREE.DoubleSide,
+                    //alphaTest: 0,
+                    //visible: false
                 } );
             var flatmesh = new THREE.MeshBasicMaterial( { color: 0xffccbb, side: THREE.DoubleSide, alphaTest: 0, visible: false } );
 
@@ -253,19 +284,40 @@
               uniforms: uniforms,
               vertexShader: vertShader,
               fragmentShader: fragShader
-
             });
+
+            // var cloud_shh = new THREE.ShaderMaterial({
+            //   uniforms: cloudUniforms,
+            //   vertexShader: cloudVert,
+            //   fragmentShader: cloudFrag
+            // });
+
             var flatplane = new THREE.Mesh(new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg), flatmesh);
 
-            var shadowplane = new THREE.Mesh(geometry, mesh); // shadowplane
-
             var plane = new THREE.Mesh(geometry, material_shh);
+
+            var sun_geo = new THREE.Geometry();
+            var sun_mat = new THREE.PointsMaterial({
+               color: 0xffcc00,
+               size: 20,
+               sizeAttenuation: false,
+               map: new THREE.TextureLoader().load("textures/particle.png"),
+               transparent: true
+            });
+             sun_geo.vertices.push(new THREE.Vector3(0.0, 0.0, 0.0));
+
+            var sun = new THREE.Points(sun_geo, sun_mat);
+
+            //var cloud = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), cloud_shh);
+
+            //sun.position.set(lightPos);          
 
             plane.castShadow = true;
             plane.receiveShadow = true;
 
             scene.add(flatplane);
             scene.add(plane);
+            //scene.add(sun);
 
             var time = 0.0;
             camera.position.z = 15;
@@ -287,18 +339,19 @@
 
             }
             function mousemove() {
-                if (mousedownID!=-1){
+                //if (mousedownID!=-1){
+                    raycaster.setFromCamera( mouse, camera );
                     mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                     mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
                     var intersect = raycaster.intersectObject(flatplane);
                     if (intersect.length > 0){
-                        mouse.x = intersect[0].object.geometry.vertices[intersect[0].face.a].x;
-                        mouse.y = intersect[0].object.geometry.vertices[intersect[0].face.a].y;
-                        console.log(mouse.x, mouse.y);
+                        mouse.x = intersect[0].point.x;
+                        mouse.y = intersect[0].point.y;
                         uniforms.mouse.value.x = mouse.x;
                         uniforms.mouse.value.y = mouse.y;
                     }
-                }
+                //}
+                //render();
             }
 
             var direction = 1;
@@ -320,6 +373,8 @@
                 }
             }
             var colored = new Set();
+
+
             function clickfun(){
                 // mouse.x = (event.clientX / renderer.domElement.width ) * 2 - 1;
                 // mouse.y = - (event.clientY / renderer.domElement.height ) * 2 + 1;
@@ -343,7 +398,6 @@
                         }
                         
                     }
-                    console.log( intersect[ 0 ].point );
                     uniforms.mouse.value.x = intersect[0].point.x;
                     uniforms.mouse.value.y = intersect[0].point.y;
                 }
@@ -462,32 +516,33 @@
             var render = function () {
                 requestAnimationFrame( render );
 
+                time = clock.getElapsedTime();
+
                 plane.geometry.computeFaceNormals();
                 plane.geometry.computeVertexNormals();  
                 plane.geometry.verticesNeedUpdate = true;
                 plane.geometry.normalsNeedUpdate = true;
-                // for (var i = 0; i < plane.geometry.vertices.length; i++) {
-                //     plane.geometry.vertices[i].z = Math.sin(time + i/8);
-                // }
+                sun.geometry.verticesNeedUpdate = true;
+                sun.geometry.normalsNeedUpdate = true;
 
-                // time += 0.05;
-                // plane.rotation.z += 0.01;
-                // uniforms.rand.value = Math.random() % 5;
-                // console.log(colored.size);
+                lightPos.y = 5 * Math.cos(time/3.0);
+                lightPos.x = 5 * Math.sin(time/3.0);
+                console.log(sun.position);
+                sun.position.set(lightPos.x, lightPos.y, lightPos.z);  
+                uniforms.time.value = time;
+
+                console.log(uniforms.time.value );
 
                 renderer.render(scene, camera);
             };
-            
-            // document.getElementById("radius_val").innerHTML = radius.toString();
+        
 
             function updateTextInput(val) {
                radius = val;
-               // var myDiv = document.getElementById("radius_val");
-               // console.log(myDiv.innerHTML); //= "hi";​
+               uniforms.radius.value = val;
                document.getElementById("radius_val").innerHTML = radius.toString();
 
             }
-              // document.getElementById('radius_val').innerHTML = "hi";​
 
             render();
         </script>
