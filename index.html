@@ -4,7 +4,7 @@
         <style>
             body { margin: 0; }
             canvas { width: 100%; height: 100% }
-            .menu { margin: 20px;}
+            .menu { margin: 30px;}
         </style>
     </head>
     <body>
@@ -16,6 +16,7 @@
             #endif
             uniform vec2 colored;
             uniform float radius;
+            uniform sampler2D tSan;
             uniform sampler2D tDir;
             uniform sampler2D tGra;
             uniform sampler2D tWat;
@@ -37,9 +38,10 @@
                 vec4 Cdirt  = texture2D(tDir, vUv * 20.0); //dirt
                 vec4 Cgrass = texture2D(tGra, vUv * textRepeat); //grass
                 vec4 Crock = texture2D(tRoc, vUv * 20.0); //rock
+                vec4 Csand = texture2D(tSan, vUv * 20.0); //sand
                 vec4 Csnow = texture2D(tSno, vUv); //snow
                 vec4 Cwater = texture2D(tWat, vUv); //water
-                vec3 c = Cgrass.rgb;
+                vec3 c = Cwater.rgb;
 
                 vec3 lightDir = normalize(lightPosition - vPos);
 
@@ -52,30 +54,49 @@
                 float rock_b = 2.4;
 
                 float dirt_t = 1.8;
-                float dirt_b = 0.6;
+                float dirt_b = 1.2;
 
-                float grass_t = 0.1;
-                float grass_b = -0.2;
+                float grass_t = 0.8;
+                float grass_b = 0.4;
 
-                if (vPos.z <= grass_b) {
+                float sand_t = 0.25;
+                float sand_b = 0.2;
+
+                float water_t = 0.0;
+
+                float zpos = vPos.z + 0.5;
+
+                if (zpos < water_t) {
                     c = Cwater.rgb;
                 }
-                else if (vPos.z >= grass_t && vPos.z < dirt_b) {
-                    c = Cdirt.rgb * ((vPos.z - grass_t)/(dirt_b - grass_t)) + Cgrass.rgb * (1.0 - (vPos.z - grass_t)/(dirt_b - grass_t));
+                else if (zpos >= water_t && zpos < sand_b) {
+                    c = Csand.rgb * ((zpos - water_t)/(sand_b - water_t)) + Cwater.rgb * (1.0 - (zpos - water_t)/(sand_b - water_t));
                 }
-                else if (vPos.z >= dirt_b && vPos.z < dirt_t) {
+                else if (zpos >= sand_b && zpos < sand_t) {
+                    c = Csand.rgb;
+                }
+                else if (zpos >= sand_t && zpos < grass_b) {
+                    c = Cgrass.rgb * ((zpos - sand_t)/(grass_b - sand_t)) + Csand.rgb * (1.0 - (zpos - sand_t)/(grass_b-sand_t));
+                }
+                else if (zpos >= grass_b && zpos < grass_t) {
+                    c = Cgrass.rgb;
+                }
+                else if (zpos >= grass_t && zpos < dirt_b) {
+                    c = Cdirt.rgb * ((zpos - grass_t)/(dirt_b - grass_t)) + Cgrass.rgb * (1.0 - (zpos - grass_t)/(dirt_b - grass_t));
+                }
+                else if (zpos >= dirt_b && zpos < dirt_t) {
                     c = Cdirt.rgb;
                 }
-                else if (vPos.z >= dirt_t && vPos.z < rock_b) {
-                    c = Crock.rgb * ((vPos.z - dirt_t)/(rock_b - dirt_t)) + Cdirt.rgb * (1.0 - (vPos.z - dirt_t)/(rock_b - dirt_t));
+                else if (zpos >= dirt_t && zpos < rock_b) {
+                    c = Crock.rgb * ((zpos - dirt_t)/(rock_b - dirt_t)) + Cdirt.rgb * (1.0 - (zpos - dirt_t)/(rock_b - dirt_t));
                 }
-                else if (vPos.z >= rock_b && vPos.z < rock_t) {
+                else if (zpos >= rock_b && zpos < rock_t) {
                     c = Crock.rgb;
                 }
-                else if (vPos.z >= rock_t && vPos.z < snow_b) {
-                    c = Csnow.rgb * ((vPos.z - rock_t)/(snow_b - rock_t)) + Crock.rgb * (1.0 - (vPos.z - rock_t)/(snow_b - rock_t));
+                else if (zpos >= rock_t && zpos < snow_b) {
+                    c = Csnow.rgb * ((zpos - rock_t)/(snow_b - rock_t)) + Crock.rgb * (1.0 - (zpos - rock_t)/(snow_b - rock_t));
                 }
-                else if (vPos.z >= snow_b){
+                else if (zpos >= snow_b){
                     c = Csnow.rgb;
                 }
 
@@ -166,7 +187,7 @@
             var radius = 2;
 
             var maxheight = 4;
-            var minheight = -0.21;
+            var minheight = -0.51;
 
             // lighting
             // var light = new THREE.DirectionalLight( 0xffffff, 1 );
@@ -191,6 +212,7 @@
             water_tex = new THREE.TextureLoader().load( "textures/water.png" );
             rock_tex = new THREE.TextureLoader().load( "textures/rock.jpg" );
             snow_tex = new THREE.TextureLoader().load( "textures/snow.jpg" );
+            sand_tex = new THREE.TextureLoader().load( "textures/sand.jpg" );
 
             var uniforms = {    // custom uniforms (your textures)
               tDir: { type: "t", value: dirt_tex},
@@ -198,6 +220,7 @@
               tWat: { type: "t", value: water_tex},
               tRoc: { type: "t", value: rock_tex},
               tSno: { type: "t", value: snow_tex},
+              tSan: { type: "t", value: sand_tex},
               verts: {type: "f", value: zvals},
               textRepeat: {type: 'f', value: 10},
               mouse: { type: "v2", value: new THREE.Vector2() },
@@ -211,6 +234,7 @@
             uniforms.tGra.value.wrapS = uniforms.tGra.value.wrapT = THREE.RepeatWrapping;
             uniforms.tSno.value.wrapS = uniforms.tSno.value.wrapT = THREE.RepeatWrapping;
             uniforms.tRoc.value.wrapS = uniforms.tRoc.value.wrapT = THREE.RepeatWrapping;
+            uniforms.tSan.value.wrapS = uniforms.tSan.value.wrapT = THREE.RepeatWrapping;
 
             var geometry = new THREE.PlaneGeometry(pLength,pLength,pSeg,pSeg);
             // var geometry = new THREE.PlaneBufferGeometry( pLength, pLength, pSeg, pSeg );
@@ -385,22 +409,18 @@
                         setInterval(rotate(1), 5);
                         clearInterval();
                         break;
-                    // case 87:
-                    //     //w
-                    //     if (camera.position.x > 0) {
-                    //         gox = -1;
-                    //     }
-                    //     if (camera.position.y > 0){
-                    //         goy = -1;
-                    //     }
-                    //     camera.position.x += gox * 0.15;
-                    //     camera.position.y += goy * 0.15;
-                    //     break;
-                    // case 83:
-                    //     //s
-                    //     camera.position.x += 0.15;
-                    //     camera.position.y += 0.15;
-                    //     break;
+                    case 87:
+                        //w
+                        if (camera.position.z < 25)
+                            camera.position.z += 0.35;
+                        camera.lookAt(new THREE.Vector3(0,0,0));
+                        break;
+                    case 83:
+                        //s
+                        if (camera.position.z > 0)
+                            camera.position.z -= 0.35;
+                        camera.lookAt(new THREE.Vector3(0,0,0));                        
+                        break;
                 }
                 event.preventDefault();
             }
@@ -457,13 +477,33 @@
 
                 renderer.render(scene, camera);
             };
+            
+            // document.getElementById("radius_val").innerHTML = radius.toString();
 
+            function updateTextInput(val) {
+               radius = val;
+               // var myDiv = document.getElementById("radius_val");
+               // console.log(myDiv.innerHTML); //= "hi";​
+               document.getElementById("radius_val").innerHTML = radius.toString();
+
+            }
+              // document.getElementById('radius_val').innerHTML = "hi";​
 
             render();
         </script>
-            <button type="button" onclick="setRaise(1)">Up</button>
-            <button type="button" onclick="setRaise(-1)">Down</button>
-            <button type="button" onclick="rotate(-1)">Rotate left</button>
-            <button type="button" onclick="rotate(1)">Rotate right</button>
+            <div class = "menu">
+                <form>
+                    <input type="range" name="points" min="0.1" max="5" step ="0.1" onchange="updateTextInput(this.value)">
+                </form>
+                Brush Size:
+                <span id = "radius_val">
+                2
+                </span>
+                <button type="button" onclick="setRaise(1)">Up</button>
+                <button type="button" onclick="setRaise(-1)">Down</button>
+                <button type="button" onclick="rotate(-1)">Rotate left</button>
+                <button type="button" onclick="rotate(1)">Rotate right</button>
+            </div>
+            
     </body>
 </html>
